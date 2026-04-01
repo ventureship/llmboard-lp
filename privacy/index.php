@@ -84,7 +84,7 @@ require __DIR__ . '/../includes/header.php';
         <li><strong class="text-white/70">Objection</strong> — object to processing based on legitimate interests.</li>
         <li><strong class="text-white/70">Withdraw consent</strong> — where processing is based on consent, withdraw it at any time.</li>
       </ul>
-      <p>To exercise any of these rights, contact us at <a href="mailto:support@llmboard.app">support@llmboard.app</a>. We will respond within 30 days.</p>
+      <p>To exercise any of these rights, contact us at <a href="mailto:support@bitsofwow.com">support@bitsofwow.com</a>. We will respond within 30 days.</p>
 
       <h2>9. Children's Privacy</h2>
       <p>The Service is not directed at anyone under the age of 16. We do not knowingly collect personal information from children. If we become aware that we have collected data from a child, we will delete it promptly.</p>
@@ -115,7 +115,7 @@ require __DIR__ . '/../includes/header.php';
       <p>For privacy-related questions or to exercise your rights, contact us at:</p>
       <p>
         <strong class="text-white/70">Bits of WOW Pte. Ltd.</strong><br>
-        Email: <a href="mailto:support@llmboard.app">support@llmboard.app</a>
+        Email: <a href="mailto:support@bitsofwow.com">support@bitsofwow.com</a>
       </p>
 
     </div>

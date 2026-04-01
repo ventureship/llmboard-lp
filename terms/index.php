@@ -78,7 +78,7 @@ require __DIR__ . '/../includes/header.php';
       <p>These Terms are governed by and construed in accordance with the laws of Singapore. Any disputes arising from these Terms shall be subject to the exclusive jurisdiction of the courts of Singapore.</p>
 
       <h2>13. Contact</h2>
-      <p>For questions about these Terms, contact us at <a href="mailto:support@llmboard.app">support@llmboard.app</a>.</p>
+      <p>For questions about these Terms, contact us at <a href="mailto:support@bitsofwow.com">support@bitsofwow.com</a>.</p>
 
     </div>
   </main>
