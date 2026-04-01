@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLM Board — Multi-Model AI Deliberation</title>
+  <meta name="description" content="Send your question to six leading AI models. Each answers independently. A chairman synthesizes the best response. Built for decisions that matter.">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Instrument Serif"', 'serif'],
+            body: ['Outfit', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            base: {
+              DEFAULT: '#09090B',
+              50: '#0E0E11',
+              100: '#131316',
+              200: '#1C1C21',
+              300: '#27272A',
+            },
+            accent: {
+              DEFAULT: '#10B981',
+              light: '#34D399',
+              dim: '#059669',
+              glow: 'rgba(16, 185, 129, 0.15)',
+            },
+            model: {
+              claude: '#F59E0B',
+              gpt: '#10B981',
+              gemini: '#3B82F6',
+              grok: '#EF4444',
+              deepseek: '#8B5CF6',
+              kimi: '#EC4899',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #09090B;
+      color: #FAFAFA;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ---- Noise texture overlay ---- */
+    .noise-overlay::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+
+    /* ---- Grid pattern ---- */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 64px 64px;
+    }
+
+    /* ---- Dot grid pattern ---- */
+    .dot-grid-bg {
+      background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* ---- Fine line pattern ---- */
+    .line-bg {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 8px,
+        rgba(255,255,255,0.015) 8px,
+        rgba(255,255,255,0.015) 9px
+      );
+    }
+
+    /* ---- Scroll reveal ---- */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ---- Stagger children ---- */
+    .reveal-stagger > .reveal:nth-child(1) { transition-delay: 0s; }
+    .reveal-stagger > .reveal:nth-child(2) { transition-delay: 0.08s; }
+    .reveal-stagger > .reveal:nth-child(3) { transition-delay: 0.16s; }
+    .reveal-stagger > .reveal:nth-child(4) { transition-delay: 0.24s; }
+    .reveal-stagger > .reveal:nth-child(5) { transition-delay: 0.32s; }
+    .reveal-stagger > .reveal:nth-child(6) { transition-delay: 0.40s; }
+
+    /* ---- Accent glow ---- */
+    .glow-accent {
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.15), 0 0 80px rgba(16, 185, 129, 0.07);
+    }
+
+    /* ---- Card border ---- */
+    .card-border {
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .card-border-hover {
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card-border-hover:hover {
+      border-color: rgba(16, 185, 129, 0.2);
+      box-shadow: 0 0 30px rgba(16, 185, 129, 0.05);
+    }
+
+    /* ---- Model constellation ---- */
+    .constellation {
+      position: relative;
+      width: 340px;
+      height: 340px;
+    }
+    @media (min-width: 768px) {
+      .constellation { width: 440px; height: 440px; }
+    }
+
+    .constellation .orbit-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .constellation .orbit-ring-inner {
+      position: absolute;
+      inset: 25%;
+      border-radius: 50%;
+      border: 1px dashed rgba(255,255,255,0.04);
+    }
+
+    .model-dot {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      cursor: default;
+    }
+    .model-dot::before {
+      content: '';
+      position: absolute;
+      inset: -6px;
+      border-radius: 50%;
+      background: inherit;
+      opacity: 0.2;
+      animation: pulse-dot 3s ease-in-out infinite;
+    }
+    .model-dot::after {
+      content: attr(data-label);
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.4);
+      white-space: nowrap;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 0.2; }
+      50% { transform: scale(1.8); opacity: 0.08; }
+    }
+
+    .model-dot:nth-child(1)::before { animation-delay: 0s; }
+    .model-dot:nth-child(2)::before { animation-delay: 0.5s; }
+    .model-dot:nth-child(3)::before { animation-delay: 1.0s; }
+    .model-dot:nth-child(4)::before { animation-delay: 1.5s; }
+    .model-dot:nth-child(5)::before { animation-delay: 2.0s; }
+    .model-dot:nth-child(6)::before { animation-delay: 2.5s; }
+
+    .synthesis-node {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #10B981 0%, rgba(16,185,129,0.3) 60%, transparent 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .synthesis-node::before {
+      content: '';
+      position: absolute;
+      inset: -12px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%);
+      animation: pulse-synthesis 4s ease-in-out infinite;
+    }
+
+    @keyframes pulse-synthesis {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.6); opacity: 0.4; }
+    }
+
+    .connector-line {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform-origin: 0 0;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(16,185,129,0.2), rgba(255,255,255,0.03));
+    }
+
+    /* ---- Faux product UI ---- */
+    .faux-ui {
+      background: #0C0C0D;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 20px 60px rgba(0,0,0,0.5),
+        0 0 100px rgba(16,185,129,0.03);
+    }
+    .faux-ui-titlebar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .faux-ui-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* ---- Mode card accent strip ---- */
+    .mode-strip {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    /* ---- Section separator ---- */
+    .section-sep {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06) 20%, rgba(255,255,255,0.06) 80%, transparent);
+    }
+
+    /* ---- Tooltip for model strip ---- */
+    .model-pill {
+      position: relative;
+      cursor: default;
+    }
+    .model-pill .model-tip {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 4px 8px;
+      background: #1C1C21;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.6);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    .model-pill:hover .model-tip { opacity: 1; }
+
+    /* ---- Reduced motion ---- */
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { transition: opacity 0.3s ease; transform: none; }
+      .reveal.visible { transform: none; }
+      .model-dot::before, .synthesis-node::before { animation: none; }
+    }
+
+    /* ---- Selection color ---- */
+    ::selection {
+      background: rgba(16, 185, 129, 0.25);
+      color: #fff;
+    }
+
+    /* ---- Custom scrollbar ---- */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #09090B; }
+    ::-webkit-scrollbar-thumb { background: #27272A; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+  </style>
+</head>
+
+<body class="noise-overlay">
+
+  <!-- ============================================ -->
+  <!-- NAV -->
+  <!-- ============================================ -->
+  <nav id="nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" style="background: rgba(9,9,11,0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+    <div class="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
+      <a href="#" class="flex items-center gap-2.5 group">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" class="transition-transform duration-300 group-hover:scale-105">
+          <rect x="2" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.9"/>
+          <rect x="16" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.5"/>
+          <rect x="2" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.5"/>
+          <rect x="16" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.3"/>
+        </svg>
+        <span class="font-body font-semibold text-[15px] tracking-tight text-white/90">LLM Board</span>
+      </a>
+
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#how-it-works" class="text-[13px] font-medium text-white/50 hover:text-white/90 transition-colors duration-200">How it works</a>
+        <a href="#modes" class="text-[13px] font-medium text-white/50 hover:text-white/90 transition-colors duration-200">Modes</a>
+        <a href="#pricing" class="text-[13px] font-medium text-white/50 hover:text-white/90 transition-colors duration-200">Pricing</a>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <a href="https://dashboard.llmboard.app" class="hidden sm:inline-block text-[13px] font-medium text-white/50 hover:text-white/90 transition-colors duration-200">Log in</a>
+        <a href="https://dashboard.llmboard.app" class="inline-flex items-center px-4 py-2 rounded-lg bg-accent/15 text-accent-light text-[13px] font-semibold hover:bg-accent/25 transition-all duration-200 cursor-pointer">
+          Get started free
+        </a>
+      </div>
+
+      <button id="mobile-menu-btn" class="md:hidden ml-3 p-2 text-white/50 hover:text-white/90 transition-colors cursor-pointer" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+      </button>
+    </div>
+
+    <div id="mobile-menu" class="md:hidden overflow-hidden transition-all duration-300" style="max-height:0; opacity:0;">
+      <div class="px-6 pb-5 pt-2 flex flex-col gap-4 border-t border-white/5">
+        <a href="#how-it-works" class="text-sm text-white/60 hover:text-white/90">How it works</a>
+        <a href="#modes" class="text-sm text-white/60 hover:text-white/90">Modes</a>
+        <a href="#pricing" class="text-sm text-white/60 hover:text-white/90">Pricing</a>
+      </div>
+    </div>
+  </nav>
+
+
+  <!-- ============================================ -->
+  <!-- HERO -->
+  <!-- ============================================ -->
+  <section class="relative min-h-screen flex items-center grid-bg overflow-hidden">
+    <div class="absolute top-1/2 right-[10%] -translate-y-1/2 w-[600px] h-[600px] rounded-full hidden lg:block" style="background: radial-gradient(circle, rgba(16,185,129,0.06) 0%, rgba(59,130,246,0.03) 40%, transparent 70%);"></div>
+
+    <div class="max-w-6xl mx-auto px-6 pt-32 pb-20 md:pt-40 md:pb-32 w-full">
+      <div class="flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
+        <!-- Left: Copy -->
+        <div class="flex-1 max-w-xl">
+          <div class="reveal inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] card-border mb-8">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span>
+            <span class="text-[12px] font-mono font-medium text-white/50 tracking-wide uppercase">Multi-model deliberation</span>
+          </div>
+
+          <h1 class="reveal font-display text-[clamp(2.5rem,5.5vw,4.25rem)] leading-[1.05] tracking-tight mb-6">
+            When the decision matters, <span class="italic text-white/60">one AI isn't enough.</span>
+          </h1>
+
+          <p class="reveal text-[18px] leading-relaxed text-white/55 mb-10 max-w-lg">
+            LLM Board sends your question, problems, or ideas to brainstorm to six leading AI models. Each answers independently. A chairman synthesizes a response. You see the consensus, the divergence, the summary, and every raw take.
+          </p>
+
+          <div class="reveal flex flex-wrap items-center gap-4">
+            <a href="https://dashboard.llmboard.app" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-emerald-700 text-white font-semibold text-[15px] hover:bg-emerald-600 transition-all duration-200 glow-accent cursor-pointer">
+              Start free
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </a>
+            <a href="#how-it-works" class="inline-flex items-center gap-2 px-5 py-3 rounded-lg card-border text-white/60 text-[15px] font-medium hover:text-white/90 hover:border-white/12 transition-all duration-200 cursor-pointer">
+              See how it works
+            </a>
+          </div>
+
+          <!-- Model strip with tooltips -->
+          <div class="reveal mt-12 flex items-center gap-5">
+            <span class="text-[11px] font-mono text-white/30 uppercase tracking-wider">Models on the board</span>
+            <div class="flex items-center gap-3">
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-claude"><span class="model-tip">Claude Opus 4.6</span></span>
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-gpt"><span class="model-tip">GPT-5.4</span></span>
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-gemini"><span class="model-tip">Gemini 3 Pro</span></span>
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-grok"><span class="model-tip">Grok 4</span></span>
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-deepseek"><span class="model-tip">DeepSeek V3.2</span></span>
+              <span class="model-pill w-2.5 h-2.5 rounded-full bg-model-kimi"><span class="model-tip">Kimi K2.5</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Constellation -->
+        <div class="flex-shrink-0 reveal">
+          <div class="constellation">
+            <div class="orbit-ring"></div>
+            <div class="orbit-ring-inner"></div>
+            <div id="connectors"></div>
+            <div class="model-dot" data-label="Claude" style="background:#F59E0B; top:8%; left:50%;"></div>
+            <div class="model-dot" data-label="GPT" style="background:#10B981; top:28%; left:93%;"></div>
+            <div class="model-dot" data-label="Gemini" style="background:#3B82F6; top:72%; left:93%;"></div>
+            <div class="model-dot" data-label="Grok" style="background:#EF4444; top:92%; left:50%;"></div>
+            <div class="model-dot" data-label="DeepSeek" style="background:#8B5CF6; top:72%; left:7%;"></div>
+            <div class="model-dot" data-label="Kimi" style="background:#EC4899; top:28%; left:7%;"></div>
+            <div class="synthesis-node">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2L12.5 7.5H17.5L13.5 11L15 17L10 13.5L5 17L6.5 11L2.5 7.5H7.5L10 2Z" fill="#10B981" opacity="0.9"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#09090B] to-transparent"></div>
+  </section>
+
+
+  <!-- ============================================ -->
+  <!-- PROBLEM -->
+  <!-- ============================================ -->
+  <section class="relative py-24 md:py-32" style="background: #0B0B0E;">
+    <div class="line-bg absolute inset-0 opacity-60"></div>
+    <div class="relative max-w-3xl mx-auto px-6 text-center">
+      <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight mb-8">
+        A single model gives you<br class="hidden sm:inline"> <span class="italic text-white/50">a single perspective.</span>
+      </h2>
+
+      <p class="reveal text-[17px] leading-relaxed text-white/55 max-w-2xl mx-auto mb-6">
+        Every AI model has biases baked into its training data. GPT leans one way on a policy question. Claude takes another angle. Gemini brings a third interpretation. When you ask just one, you inherit its blind spots.
+      </p>
+      <p class="reveal text-[17px] leading-relaxed text-white/55 max-w-2xl mx-auto">
+        For a quick email draft, that's fine. For a pricing strategy, a bigger business decision, an idea that needs brainstorming, a legal question, a technical architecture decision? You want the full picture. You want different and fresh perspectives. You want the disagreements surfaced, not hidden.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- HOW IT WORKS -->
+  <!-- ============================================ -->
+  <section id="how-it-works" class="relative py-24 md:py-36 overflow-hidden">
+    <div class="dot-grid-bg absolute inset-0"></div>
+
+    <div class="relative max-w-6xl mx-auto px-6">
+      <div class="text-center mb-20">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">How it works</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          Ask once. Get six perspectives.<br class="hidden sm:inline"> Read one synthesis.
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-6 md:gap-8 reveal-stagger relative">
+        <!-- Flow arrows (desktop) -->
+        <div class="hidden md:block absolute top-1/2 left-[33.33%] -translate-x-1/2 -translate-y-1/2 z-10">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="rgba(16,185,129,0.35)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="hidden md:block absolute top-1/2 left-[66.66%] -translate-x-1/2 -translate-y-1/2 z-10">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 5l7 7-7 7" stroke="rgba(16,185,129,0.35)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+
+        <!-- Step 1 -->
+        <div class="reveal relative p-8 rounded-xl bg-base-100/80 card-border-hover">
+          <div class="flex items-center gap-3 mb-5">
+            <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/10 text-accent font-mono text-sm font-semibold">1</span>
+            <span class="text-[12px] font-mono text-white/35 uppercase tracking-wider">You describe</span>
+          </div>
+          <h3 class="font-body font-semibold text-[18px] mb-3 text-white/90">Present your challenge</h3>
+          <p class="text-[15px] leading-relaxed text-white/50">
+            Type your question, describe a problem, or pitch an idea you want explored from every angle. Attach documents if needed. Pick your mode.
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="reveal relative p-8 rounded-xl bg-base-100/80 card-border-hover">
+          <div class="flex items-center gap-3 mb-5">
+            <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/10 text-accent font-mono text-sm font-semibold">2</span>
+            <span class="text-[12px] font-mono text-white/35 uppercase tracking-wider">Models deliberate</span>
+          </div>
+          <h3 class="font-body font-semibold text-[18px] mb-3 text-white/90">Six models work on it</h3>
+          <p class="text-[15px] leading-relaxed text-white/50">
+            Claude, GPT, Gemini, Grok, DeepSeek, and Kimi each tackle your input. In Council mode, they answer independently. In Brainstorm mode, they read, critique, and build on each other across three rounds.
+          </p>
+          <div class="flex items-center gap-2 mt-5">
+            <span class="w-2 h-2 rounded-full bg-model-claude"></span>
+            <span class="w-2 h-2 rounded-full bg-model-gpt"></span>
+            <span class="w-2 h-2 rounded-full bg-model-gemini"></span>
+            <span class="w-2 h-2 rounded-full bg-model-grok"></span>
+            <span class="w-2 h-2 rounded-full bg-model-deepseek"></span>
+            <span class="w-2 h-2 rounded-full bg-model-kimi"></span>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="reveal relative p-8 rounded-xl bg-base-100/80 card-border-hover">
+          <div class="flex items-center gap-3 mb-5">
+            <span class="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/10 text-accent font-mono text-sm font-semibold">3</span>
+            <span class="text-[12px] font-mono text-white/35 uppercase tracking-wider">Synthesis</span>
+          </div>
+          <h3 class="font-body font-semibold text-[18px] mb-3 text-white/90">A chairman synthesizes</h3>
+          <p class="text-[15px] leading-relaxed text-white/50">
+            The chairman reads all six responses, identifies where they agree and disagree, and gives you a clear synthesis with a recommendation. You can always expand every individual take.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- MODES -->
+  <!-- ============================================ -->
+  <section id="modes" class="relative py-24 md:py-36" style="background: #0B0B0E;">
+    <div class="relative max-w-6xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">Two approaches</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          Council or Brainstorm.<br class="hidden sm:inline"> <span class="italic text-white/50">Different tools for different problems.</span>
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 lg:gap-8 reveal-stagger">
+        <!-- COUNCIL -->
+        <div class="reveal relative rounded-xl bg-base-100/60 card-border-hover overflow-hidden">
+          <div class="mode-strip bg-gradient-to-r from-accent/60 to-accent/10"></div>
+          <div class="p-8 lg:p-10">
+            <div class="mb-5">
+              <span class="inline-block px-3 py-1.5 rounded-md bg-accent/10 text-accent text-[12px] font-mono font-medium uppercase tracking-wider">Council</span>
+            </div>
+            <h3 class="font-body font-bold text-[22px] mb-3 text-white/90">Multiple perspectives, one synthesis</h3>
+            <p class="text-[15px] leading-relaxed text-white/55 mb-8">
+              All six models answer your question independently. No model sees another's answer. The chairman reads every response and produces a clear synthesis with points of agreement, disagreements, and a recommendation.
+            </p>
+
+            <!-- Medium / High sub-options -->
+            <div class="space-y-4 mb-8">
+              <div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[14px] font-semibold text-white/80">Medium</span>
+                  <span class="font-mono text-[13px] text-white/50">~$0.40 – $1.00</span>
+                </div>
+                <p class="text-[14px] text-white/50">Direct synthesis. Chairman reads all responses and merges them. The default for most questions.</p>
+              </div>
+              <div class="p-4 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-[14px] font-semibold text-white/80">High</span>
+                  <span class="font-mono text-[13px] text-white/50">~$0.60 – $1.50</span>
+                </div>
+                <p class="text-[14px] text-white/50">Adds an anonymous peer-ranking step. Each model scores every other response blindly. The chairman uses these scores to weigh the synthesis.</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="rgba(255,255,255,0.3)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p class="text-[14px] text-white/45"><span class="text-white/65 font-medium">Max Thinking</span> option doubles the reasoning depth (and roughly doubles cost). Good for complex analysis.</p>
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-white/[0.04]">
+              <p class="text-[14px] text-white/45 leading-relaxed">
+                Strategy reviews, technical decisions, policy questions, market analysis. Anywhere you want six independent opinions distilled into one clear answer.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- BRAINSTORM -->
+        <div class="reveal relative rounded-xl bg-base-100/60 card-border-hover overflow-hidden">
+          <div class="mode-strip bg-gradient-to-r from-violet-500/60 to-violet-500/10"></div>
+          <div class="p-8 lg:p-10">
+            <div class="mb-5">
+              <span class="inline-block px-3 py-1.5 rounded-md bg-violet-500/10 text-violet-400 text-[12px] font-mono font-medium uppercase tracking-wider">Deep Brainstorm</span>
+            </div>
+            <h3 class="font-body font-bold text-[22px] mb-3 text-white/90">Ideas that evolve through debate</h3>
+            <p class="text-[15px] leading-relaxed text-white/55 mb-8">
+              A fundamentally different approach. Three rounds of structured deliberation where models don't just answer; they read each other, critique, and revise their positions. Grok plays red team and challenges assumptions.
+            </p>
+
+            <!-- 3 rounds visualization -->
+            <div class="space-y-3 mb-8">
+              <div class="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500/15 text-violet-400 flex items-center justify-center text-[11px] font-mono font-semibold mt-0.5">1</span>
+                <div>
+                  <p class="text-[14px] font-medium text-white/70">Initial positions</p>
+                  <p class="text-[14px] text-white/45">Each model submits an independent approach with reasoning, assumptions, and risks.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500/15 text-violet-400 flex items-center justify-center text-[11px] font-mono font-semibold mt-0.5">2</span>
+                <div>
+                  <p class="text-[14px] font-medium text-white/70">Critique and challenge</p>
+                  <p class="text-[14px] text-white/45">Models read all other positions, poke holes, and strengthen their own. Grok gets extra red-team instructions.</p>
+                </div>
+              </div>
+              <div class="flex items-start gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.05]">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500/15 text-violet-400 flex items-center justify-center text-[11px] font-mono font-semibold mt-0.5">3</span>
+                <div>
+                  <p class="text-[14px] font-medium text-white/70">Revised final positions</p>
+                  <p class="text-[14px] text-white/45">Models submit final plans noting what changed. Chairman produces a merged decision brief.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-4">
+              <span class="font-mono text-[15px] text-white/60">~$1.00 – $3.50 per session</span>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="rgba(255,255,255,0.3)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p class="text-[14px] text-white/45"><span class="text-white/65 font-medium">Max Thinking</span> roughly doubles cost but produces significantly deeper analysis.</p>
+            </div>
+
+            <div class="mt-6 pt-5 border-t border-white/[0.04]">
+              <p class="text-[14px] text-white/45 leading-relaxed">
+                Creative brainstorming, go-to-market strategies, investment analysis, product direction. For the problems where ideas need to collide and evolve, not just line up.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="reveal text-center text-[14px] text-white/30 mt-8">
+        Costs vary based on response length and complexity. Prices shown are typical ranges, not fixed amounts. You'll see the total after each session.
+      </p>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- UI SHOWCASE -->
+  <!-- ============================================ -->
+  <section class="relative py-24 md:py-36 overflow-hidden">
+    <div class="grid-bg absolute inset-0 opacity-50"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px]" style="background: radial-gradient(ellipse, rgba(16,185,129,0.04) 0%, transparent 60%);"></div>
+
+    <div class="relative max-w-5xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">The interface</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          The full picture, at a glance.
+        </h2>
+        <p class="reveal text-white/50 text-[17px] mt-4 max-w-md mx-auto">
+          See the synthesis. Expand any individual take. Ask follow-ups.
+        </p>
+      </div>
+
+      <!-- Faux product UI -->
+      <div class="reveal faux-ui max-w-4xl mx-auto">
+        <div class="faux-ui-titlebar">
+          <div class="faux-ui-dot bg-[#FF5F57]"></div>
+          <div class="faux-ui-dot bg-[#FEBC2E]"></div>
+          <div class="faux-ui-dot bg-[#28C840]"></div>
+          <div class="ml-4 flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
+              <rect x="2" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.7"/>
+              <rect x="16" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.4"/>
+              <rect x="2" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.4"/>
+              <rect x="16" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.2"/>
+            </svg>
+            <span class="text-[12px] text-white/30 font-body">LLM Board</span>
+          </div>
+          <div class="ml-auto flex items-center gap-3">
+            <span class="text-[11px] font-mono text-accent/60 bg-accent/5 px-2 py-0.5 rounded">$14.75</span>
+          </div>
+        </div>
+
+        <div class="p-6 md:p-8 space-y-6">
+          <!-- Question -->
+          <div class="flex justify-end">
+            <div class="bg-white/[0.04] rounded-xl rounded-br-sm px-5 py-3.5 max-w-lg">
+              <p class="text-[14px] text-white/70 leading-relaxed">We're planning to enter the European market next quarter with our B2B logistics SaaS. Current ARR is $2.4M, mostly US mid-market. What should our go-to-market strategy look like? Where are we likely to underestimate the effort?</p>
+              <div class="flex items-center gap-2 mt-2 pt-2 border-t border-white/[0.04]">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 4h8v8H4z" stroke="rgba(255,255,255,0.25)" stroke-width="1"/><path d="M2 2h8v8H2z" stroke="rgba(255,255,255,0.35)" stroke-width="1"/></svg>
+                <span class="text-[11px] text-white/25 font-mono">eu-expansion-plan.pdf</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Synthesis block -->
+          <div class="rounded-xl border border-accent/20 bg-accent/[0.03] p-6">
+            <div class="flex items-center gap-2 mb-4">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <path d="M10 2L12.5 7.5H17.5L13.5 11L15 17L10 13.5L5 17L6.5 11L2.5 7.5H7.5L10 2Z" fill="#10B981"/>
+              </svg>
+              <span class="text-[14px] font-semibold text-accent">Board Synthesis</span>
+              <span class="ml-auto text-[12px] font-mono text-white/25">Council High · $1.14</span>
+            </div>
+
+            <div class="space-y-4 text-[15px] leading-relaxed text-white/60 relative">
+              <div>
+                <p class="text-[12px] font-mono text-white/35 uppercase tracking-wider mb-2">Points of Agreement</p>
+                <p>All six models agree you should start with a single market (UK or Netherlands) rather than a pan-European launch. Five of six flag GDPR data residency as the most underestimated workstream. The consensus is that your US mid-market playbook won't transfer directly; European B2B logistics buyers expect local references and longer sales cycles.</p>
+              </div>
+
+              <div>
+                <p class="text-[12px] font-mono text-white/35 uppercase tracking-wider mb-2">Key Disagreement</p>
+                <p>The split is on UK vs Netherlands as the entry market. Claude, GPT, and Kimi favor the Netherlands (logistics hub, English-friendly, EU access). Gemini and DeepSeek argue UK (larger market, no language barrier, existing connections). Grok flagged that "starting with one market" often becomes "stuck in one market" without a 12-month expansion trigger.</p>
+              </div>
+
+              <div>
+                <p class="text-[12px] font-mono text-accent/80 uppercase tracking-wider mb-2 text-[12px] font-mono">Recommendation</p>
+                <p class="text-white/70">Start with the Netherlands. Hire a local commercial lead before you open the office. Budget 6 months to first deal, not 3. Set a hard trigger to expand to Germany by month 14 regardless of NL traction.</p>
+              </div>
+
+              <!-- Fade out to suggest more content -->
+              <div class="relative pt-2">
+                <div class="text-white/30 text-[14px] leading-relaxed" style="mask-image: linear-gradient(to bottom, white 0%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, white 0%, transparent 100%);">
+                  <p class="text-[12px] font-mono text-white/35 uppercase tracking-wider mb-2">Detailed Analysis</p>
+                  <p>On market selection: Gemini argues the UK's larger addressable market ($4.2B logistics SaaS TAM) outweighs the Netherlands' cultural fit. GPT counters that UK post-Brexit regulatory divergence creates hidden compliance costs that will erode your first-year...</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Callout: this is abbreviated -->
+            <div class="mt-4 pt-4 border-t border-white/[0.04] flex items-start gap-2.5">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" class="flex-shrink-0 mt-0.5"><path d="M8 1.5a6.5 6.5 0 100 13 6.5 6.5 0 000-13zM8 5v3M8 10.5h.007" stroke="rgba(52,211,153,0.7)" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <p class="text-[13px] text-white/55 leading-relaxed">Shortened for this preview. Real syntheses are much more detailed, quoting each model by name with <span class="text-white/80 font-medium">specific analysis</span>, <span class="text-white/80 font-medium">competing arguments</span>, and <span class="text-white/80 font-medium">actionable next steps</span>.</p>
+            </div>
+          </div>
+
+          <!-- Individual takes -->
+          <div>
+            <button class="flex items-center gap-2 text-[14px] text-white/35 hover:text-white/50 transition-colors cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+              6 individual takes
+            </button>
+
+            <div class="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-claude"></span>
+                <span class="text-[13px] text-white/45">Claude Opus</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">3.2K tok</span>
+              </div>
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-gpt"></span>
+                <span class="text-[13px] text-white/45">GPT-5.4</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">2.8K tok</span>
+              </div>
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-gemini"></span>
+                <span class="text-[13px] text-white/45">Gemini 3 Pro</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">2.4K tok</span>
+              </div>
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-grok"></span>
+                <span class="text-[13px] text-white/45">Grok 4</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">3.1K tok</span>
+              </div>
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-deepseek"></span>
+                <span class="text-[13px] text-white/45">DeepSeek V3.2</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">2.6K tok</span>
+              </div>
+              <div class="px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-model-kimi"></span>
+                <span class="text-[13px] text-white/45">Kimi K2.5</span>
+                <span class="ml-auto text-[11px] font-mono text-white/20">2.2K tok</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Follow-up -->
+          <div class="flex items-center gap-3 p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+            <span class="text-[14px] text-white/25 flex-1">Ask a follow-up...</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-mono text-white/20 bg-white/[0.03] px-2 py-1 rounded">Chairman</span>
+              <span class="text-[11px] font-mono text-white/12 bg-white/[0.02] px-2 py-1 rounded">Board</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- USE CASES -->
+  <!-- ============================================ -->
+  <section class="relative py-24 md:py-36" style="background: #0B0B0E;">
+    <div class="dot-grid-bg absolute inset-0 opacity-40"></div>
+
+    <div class="relative max-w-5xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">Use cases</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          For decisions that cost more<br class="hidden sm:inline"> than the question.
+        </h2>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 reveal-stagger">
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"We're entering the EU market next quarter. Brainstorm 8 go-to-market angles we haven't considered."</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Brainstorming</p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"Here's our pricing model. Stress-test it. What breaks at 10x scale? What are competitors doing differently?"</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Pricing strategy</p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"Three vendors responded to our RFP. Here are the proposals. Help me compare them systematically."</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Vendor evaluation</p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"We're stuck between three technical approaches for our data pipeline. What are fresh ways to think about this?"</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Problem solving</p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"Review this investment memo. Where are the assumptions weakest? What's the bear case we're ignoring?"</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Financial analysis</p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-100/40 card-border-hover">
+          <p class="text-[15px] text-white/70 mb-3 font-medium">"We're launching a new product line. Brainstorm 10 positioning angles, then rank them by defensibility."</p>
+          <p class="text-[12px] text-white/30 font-mono uppercase tracking-wider">Product launches</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- WHY MULTIPLE MODELS -->
+  <!-- ============================================ -->
+  <section class="relative py-24 md:py-36">
+    <div class="grid-bg absolute inset-0 opacity-30"></div>
+    <div class="relative max-w-5xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">Why it works</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          Every model is biased.<br class="hidden sm:inline"> <span class="italic text-white/50">That's the point.</span>
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto reveal-stagger">
+        <div class="reveal p-6 rounded-xl bg-base-50/50 card-border-hover">
+          <div class="flex items-center gap-2.5 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+            <h3 class="font-body font-semibold text-[16px] text-white/80">Independent answers, then convergence</h3>
+          </div>
+          <p class="text-[15px] text-white/45 leading-relaxed pl-4">
+            Models don't see each other's responses. They can't anchor to the first answer. Each one reasons from scratch, so you get genuinely different perspectives before the synthesis.
+          </p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-50/50 card-border-hover">
+          <div class="flex items-center gap-2.5 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+            <h3 class="font-body font-semibold text-[16px] text-white/80">Disagreements are the signal</h3>
+          </div>
+          <p class="text-[15px] text-white/45 leading-relaxed pl-4">
+            When five models agree and one dissents, that dissent is worth reading. When they split 3-3, you've found the crux of the decision. The synthesis surfaces this.
+          </p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-50/50 card-border-hover">
+          <div class="flex items-center gap-2.5 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full bg-model-grok"></span>
+            <h3 class="font-body font-semibold text-[16px] text-white/80">Grok plays red team</h3>
+          </div>
+          <p class="text-[15px] text-white/45 leading-relaxed pl-4">
+            In Deep Brainstorm mode, Grok 4 gets extra instructions to challenge assumptions and find weaknesses. Your ideas get stress-tested, not just validated.
+          </p>
+        </div>
+        <div class="reveal p-6 rounded-xl bg-base-50/50 card-border-hover">
+          <div class="flex items-center gap-2.5 mb-3">
+            <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+            <h3 class="font-body font-semibold text-[16px] text-white/80">Full transparency</h3>
+          </div>
+          <p class="text-[15px] text-white/45 leading-relaxed pl-4">
+            You always see the synthesis and every individual take, with token counts and costs. Nothing is hidden. You decide how deep to read.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- PRICING -->
+  <!-- ============================================ -->
+  <section id="pricing" class="relative py-24 md:py-36" style="background: #0B0B0E;">
+    <div class="line-bg absolute inset-0 opacity-40"></div>
+
+    <div class="relative max-w-4xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <p class="reveal text-[12px] font-mono font-medium text-accent/80 uppercase tracking-widest mb-4">Pricing</p>
+        <h2 class="reveal font-display text-[clamp(1.8rem,3.5vw,2.75rem)] leading-tight tracking-tight">
+          Pay per session. No subscription.
+        </h2>
+        <p class="reveal text-white/50 text-[17px] mt-5 max-w-lg mx-auto">
+          Costs depend on how much each model writes. Short questions cost less; detailed analysis costs more. You see the total after each session. Top up with as little as $5.
+        </p>
+      </div>
+
+      <div class="reveal max-w-2xl mx-auto">
+        <div class="rounded-xl bg-base-100/60 card-border p-8 md:p-10">
+          <div class="grid grid-cols-3 gap-6 mb-8">
+            <div class="text-center">
+              <p class="font-mono text-2xl md:text-3xl font-semibold text-white/85">~$0.70</p>
+              <p class="text-[12px] font-mono text-white/30 mt-1 uppercase tracking-wider">Council Med</p>
+              <p class="text-[12px] text-white/30 mt-0.5">typical session</p>
+            </div>
+            <div class="text-center border-x border-white/[0.04]">
+              <p class="font-mono text-2xl md:text-3xl font-semibold text-white/85">~$1.20</p>
+              <p class="text-[12px] font-mono text-white/30 mt-1 uppercase tracking-wider">Council High</p>
+              <p class="text-[12px] text-white/30 mt-0.5">typical session</p>
+            </div>
+            <div class="text-center">
+              <p class="font-mono text-2xl md:text-3xl font-semibold text-white/85">~$2.00</p>
+              <p class="text-[12px] font-mono text-white/30 mt-1 uppercase tracking-wider">Brainstorm</p>
+              <p class="text-[12px] text-white/30 mt-0.5">typical session</p>
+            </div>
+          </div>
+
+          <p class="text-[14px] text-white/40 text-center mb-8">Max Thinking mode roughly doubles these. Longer, more detailed sessions cost more.</p>
+
+          <div class="section-sep mb-8"></div>
+
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <p class="text-[15px] text-white/65">Start with <span class="text-accent font-semibold">$2 free credit</span></p>
+              <p class="text-[14px] text-white/40 mt-1">No credit card required. Top up from $5.</p>
+            </div>
+            <a href="https://dashboard.llmboard.app" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-emerald-700 text-white font-semibold text-[15px] hover:bg-emerald-600 transition-all duration-200 glow-accent cursor-pointer whitespace-nowrap">
+              Get started free
+            </a>
+          </div>
+        </div>
+
+        <p class="reveal text-center text-[14px] text-white/25 mt-6">
+          For context: a Deep Brainstorm session costs about the same as a coffee. It gives you the equivalent of six independent expert takes synthesized into one brief.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-sep"></div>
+
+
+  <!-- ============================================ -->
+  <!-- FINAL CTA -->
+  <!-- ============================================ -->
+  <section class="relative py-28 md:py-40 overflow-hidden">
+    <div class="grid-bg absolute inset-0 opacity-30"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px]" style="background: radial-gradient(ellipse, rgba(16,185,129,0.06) 0%, transparent 60%);"></div>
+
+    <div class="relative max-w-2xl mx-auto px-6 text-center">
+      <h2 class="reveal font-display text-[clamp(2rem,4vw,3.25rem)] leading-tight tracking-tight mb-6">
+        Try it with a real question.
+      </h2>
+      <p class="reveal text-white/45 text-[17px] mb-10 max-w-md mx-auto">
+        $2 free credit. No card required. Ask something that actually matters to you and see how six models handle it.
+      </p>
+      <div class="reveal">
+        <a href="https://dashboard.llmboard.app" class="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-emerald-700 text-white font-semibold text-[16px] hover:bg-emerald-600 transition-all duration-200 glow-accent cursor-pointer">
+          Start free
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M6.5 3.5L11 8l-4.5 4.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ============================================ -->
+  <!-- FOOTER -->
+  <!-- ============================================ -->
+  <footer class="border-t border-white/[0.04] py-12">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2.5">
+          <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
+            <rect x="2" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.7"/>
+            <rect x="16" y="2" width="10" height="10" rx="2" fill="#10B981" opacity="0.35"/>
+            <rect x="2" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.35"/>
+            <rect x="16" y="16" width="10" height="10" rx="2" fill="#10B981" opacity="0.15"/>
+          </svg>
+          <span class="font-body font-medium text-[13px] text-white/40">LLM Board</span>
+        </div>
+
+        <div class="flex items-center gap-6 text-[14px] text-white/40">
+          <a href="mailto:support@llmboard.app" class="hover:text-white/50 transition-colors">Support</a>
+          <a href="/terms" class="hover:text-white/50 transition-colors">Terms</a>
+          <a href="/privacy" class="hover:text-white/50 transition-colors">Privacy</a>
+        </div>
+
+        <p class="text-[12px] text-white/30">&copy; 2026 LLM Board &middot; Bits of WOW Pte. Ltd.</p>
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ============================================ -->
+  <!-- SCRIPTS -->
+  <!-- ============================================ -->
+  <script>
+    $(function() {
+
+      // Scroll reveal
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+      // Nav solid on scroll
+      $(window).on('scroll', function() {
+        const $nav = $('#nav');
+        if (window.scrollY > 80) {
+          $nav.css({ background: 'rgba(9,9,11,0.92)', borderBottom: '1px solid rgba(255,255,255,0.04)' });
+        } else {
+          $nav.css({ background: 'rgba(9,9,11,0.6)', borderBottom: 'none' });
+        }
+      });
+
+      // Mobile menu
+      $('#mobile-menu-btn').on('click', function() {
+        const $menu = $('#mobile-menu');
+        if (parseInt($menu.css('max-height')) === 0) {
+          $menu.css({ maxHeight: '300px', opacity: 1 });
+        } else {
+          $menu.css({ maxHeight: '0', opacity: 0 });
+        }
+      });
+
+      $('#mobile-menu a').on('click', function() {
+        $('#mobile-menu').css({ maxHeight: '0', opacity: 0 });
+      });
+
+      // Constellation connectors
+      function drawConnectors() {
+        const $constellation = $('.constellation');
+        if (!$constellation.length) return;
+
+        const cw = $constellation.width();
+        const ch = $constellation.height();
+        const cx = cw / 2;
+        const cy = ch / 2;
+
+        const dots = [];
+        $('.model-dot').each(function() {
+          const top = parseFloat($(this).css('top'));
+          const left = parseFloat($(this).css('left'));
+          dots.push({ x: left, y: top });
+        });
+
+        let html = '';
+        dots.forEach(dot => {
+          const dx = dot.x - cx;
+          const dy = dot.y - cy;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+          html += `<div class="connector-line" style="width:${length}px; transform:rotate(${angle}deg);"></div>`;
+        });
+
+        $('#connectors').html(html);
+      }
+
+      drawConnectors();
+      $(window).on('resize', drawConnectors);
+
+      // Smooth scroll
+      $('a[href^="#"]').on('click', function(e) {
+        const target = $(this.getAttribute('href'));
+        if (target.length) {
+          e.preventDefault();
+          $('html, body').animate({ scrollTop: target.offset().top - 80 }, 600, function() {
+            if (history.pushState) {
+              history.pushState(null, null, e.target.getAttribute('href'));
+            }
+          });
+        }
+      });
+
+    });
+  </script>
+
+</body>
+</html>
